@@ -6,11 +6,11 @@ include(filters.cmake)
 add_definitions(-fpic)
 
 SET(QDBMP_SRC
-        ${CMAKE_SOURCE_DIR}/qdbmp.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/qdbmp.c
 )
 
 SET(QDBMP_INC
-        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 add_filter(qdbmp

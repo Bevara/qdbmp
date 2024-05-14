@@ -1,4 +1,4 @@
-/* 
+/*
 **
 ** Adapted from the qdbmp code; see QDBMP license information below
 **
@@ -7,11 +7,11 @@
 **
 **
 ** This file is part of Bevara Access Filters.
-** 
+**
 ** This file is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation.
-** 
+**
 ** This file is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-** 
+**
 ** You should have received a copy of the GNU General Public License along with this file. If not, see <https://www.gnu.org/licenses/>.
 */
 
@@ -26,6 +26,130 @@ typedef struct
 	Bool is_playing;
 	Bool initial_play_done;
 } GF_QDBMPCtx;
+
+/* Size of the palette data for 8 BPP bitmaps */
+#define BMP_PALETTE_SIZE_8bpp ( 256 * 4 )
+
+/* Size of the palette data for 4 BPP bitmaps */
+#define BMP_PALETTE_SIZE_4bpp ( 16 * 4 )
+
+/* Holds the last error code */
+static BMP_STATUS BMP_LAST_ERROR_CODE = BMP_OK;
+
+
+
+
+/**************************************************************
+	Reads a little-endian unsigned int from the file.
+	Returns non-zero on success.
+**************************************************************/
+int	ReadUINT( UINT* x, FILE* f )
+{
+	UCHAR little[ 4 ];	/* BMPs use 32 bit ints */
+
+	if ( x == NULL || f == NULL )
+	{
+		return 0;
+	}
+
+	if ( fread( little, 4, 1, f ) != 1 )
+	{
+		return 0;
+	}
+
+	*x = ( little[ 3 ] << 24 | little[ 2 ] << 16 | little[ 1 ] << 8 | little[ 0 ] );
+
+	return 1;
+}
+
+
+/**************************************************************
+	Reads a little-endian unsigned short int from the file.
+	Returns non-zero on success.
+**************************************************************/
+int	ReadUSHORT( USHORT *x, FILE* f )
+{
+	UCHAR little[ 2 ];	/* BMPs use 16 bit shorts */
+
+	if ( x == NULL || f == NULL )
+	{
+		return 0;
+	}
+
+	if ( fread( little, 2, 1, f ) != 1 )
+	{
+		return 0;
+	}
+
+	*x = ( little[ 1 ] << 8 | little[ 0 ] );
+
+	return 1;
+}
+
+
+/**************************************************************
+	Writes a little-endian unsigned int to the file.
+	Returns non-zero on success.
+**************************************************************/
+int	WriteUINT( UINT x, FILE* f )
+{
+	UCHAR little[ 4 ];	/* BMPs use 32 bit ints */
+
+	little[ 3 ] = (UCHAR)( ( x & 0xff000000 ) >> 24 );
+	little[ 2 ] = (UCHAR)( ( x & 0x00ff0000 ) >> 16 );
+	little[ 1 ] = (UCHAR)( ( x & 0x0000ff00 ) >> 8 );
+	little[ 0 ] = (UCHAR)( ( x & 0x000000ff ) >> 0 );
+
+	return ( f && fwrite( little, 4, 1, f ) == 1 );
+}
+
+
+/**************************************************************
+	Writes a little-endian unsigned short int to the file.
+	Returns non-zero on success.
+**************************************************************/
+int	WriteUSHORT( USHORT x, FILE* f )
+{
+	UCHAR little[ 2 ];	/* BMPs use 16 bit shorts */
+
+	little[ 1 ] = (UCHAR)( ( x & 0xff00 ) >> 8 );
+	little[ 0 ] = (UCHAR)( ( x & 0x00ff ) >> 0 );
+
+	return ( f && fwrite( little, 2, 1, f ) == 1 );
+};
+
+/**************************************************************
+	Reads the BMP file's header into the data structure.
+	Returns BMP_OK on success.
+**************************************************************/
+int	ReadHeader( BMP* bmp, FILE* f )
+{
+	if ( bmp == NULL || f == NULL )
+	{
+		return BMP_INVALID_ARGUMENT;
+	}
+
+	/* The header's fields are read one by one, and converted from the format's
+	little endian to the system's native representation. */
+	if ( !ReadUSHORT( &( bmp->Header.Magic ), f ) )			return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.FileSize ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUSHORT( &( bmp->Header.Reserved1 ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUSHORT( &( bmp->Header.Reserved2 ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.DataOffset ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.HeaderSize ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.Width ), f ) )			return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.Height ), f ) )			return BMP_IO_ERROR;
+	if ( !ReadUSHORT( &( bmp->Header.Planes ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUSHORT( &( bmp->Header.BitsPerPixel ), f ) )	return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.CompressionType ), f ) )	return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.ImageDataSize ), f ) )	return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.HPixelsPerMeter ), f ) )	return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.VPixelsPerMeter ), f ) )	return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.ColorsUsed ), f ) )		return BMP_IO_ERROR;
+	if ( !ReadUINT( &( bmp->Header.ColorsRequired ), f ) )	return BMP_IO_ERROR;
+
+	return BMP_OK;
+}
 
 /*********************************** Public methods **********************************/
 
@@ -69,7 +193,7 @@ static GF_Err QDBMP_configure_pid(GF_Filter *filter, GF_FilterPid *pid, Bool is_
 	gf_filter_pid_copy_properties(ctx->opid, ctx->ipid);
 	gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_CODECID, &PROP_UINT(GF_CODECID_RAW));
 	gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_STREAM_TYPE, &PROP_UINT(GF_STREAM_VISUAL));
-	gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_PIXFMT, & PROP_UINT( GF_PIXEL_RGB ));	
+	gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_PIXFMT, & PROP_UINT( GF_PIXEL_RGB ));
 	gf_filter_set_name(filter, "QDBMP");
 
 	return GF_OK;
@@ -157,11 +281,11 @@ static GF_Err QDBMP_process(GF_Filter *filter)
 		return GF_CORRUPTED_DATA;
 	}
 
-	if ( bmp->Header.BitsPerPixel == 8 ) palettesize = BMP_PALETTE_SIZE_8bpp; 
+	if ( bmp->Header.BitsPerPixel == 8 ) palettesize = BMP_PALETTE_SIZE_8bpp;
 	if ( bmp->Header.BitsPerPixel == 4 ) palettesize = BMP_PALETTE_SIZE_4bpp;
 
 	/* Verify that the bitmap variant is supported */
-	if ( ( bmp->Header.BitsPerPixel != 32 && bmp->Header.BitsPerPixel != 24 
+	if ( ( bmp->Header.BitsPerPixel != 32 && bmp->Header.BitsPerPixel != 24
 		&& bmp->Header.BitsPerPixel != 8 && bmp->Header.BitsPerPixel != 4 )
 		|| bmp->Header.CompressionType != 0 || bmp->Header.HeaderSize != 40 )
 	{
@@ -201,7 +325,7 @@ static GF_Err QDBMP_process(GF_Filter *filter)
 
 	switch (BMP_GetDepth(bmp)){
 		case 32:
-		gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_PIXFMT, & PROP_UINT( GF_PIXEL_RGBX ));	
+		gf_filter_pid_set_property(ctx->opid, GF_PROP_PID_PIXFMT, & PROP_UINT( GF_PIXEL_RGBX ));
 		fread( output, sizeof( UCHAR ), BMP_GetWidth(bmp)*BMP_GetHeight(bmp)*4, f );
 		break;
 
@@ -227,7 +351,7 @@ static GF_Err QDBMP_process(GF_Filter *filter)
 	}
 	/* Allocate memory for image data */
 	//dst_pck = gf_filter_pck_new_alloc(ctx->opid,  BMP_GetWidth(bmp)*BMP_GetHeight(bmp)*4, &output);
-	
+
 	//fread( output, sizeof( UCHAR ), bmp->Header.ImageDataSize, f ); // FIXME : size is not matching
 	/*if ( fread( output, sizeof( UCHAR ), bmp->Header.ImageDataSize, f ) != bmp->Header.ImageDataSize )
 	{
@@ -396,7 +520,7 @@ static GF_Err QDBMP_process(GF_Filter *filter)
 
 	// // TODO: free the local data
 	// free(bmp);
-	
+
 	return GF_OK;
 }
 
