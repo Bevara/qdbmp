@@ -541,3 +541,9 @@ const GF_FilterRegister * EMSCRIPTEN_KEEPALIVE dynCall_QDBMP_register(GF_FilterS
 {
 	return &QDBMPRegister;
 }
+
+#include "filter_register.h"
+__attribute__((constructor))
+void register_QDBMP(void) {
+    gf_filter_auto_register("QDBMP", dynCall_QDBMP_register);
+}
