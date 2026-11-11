@@ -2,17 +2,28 @@
     "name": "qdbmp",
     "version": "1.0.2",
     "description": "Quick n' Dirty BMP Library",
-    "filters":["QDBMP"],
+    "filters": [
+        "QDBMP"
+    ],
     "help": "QDBMP (Quick n' Dirty BMP) is a minimalistic C library for handling BMP image files.",
     "support": [
         "image"
     ],
-    "sources":"https://bevara.ddns.net/sources/qdbmp.accessor",
-    "filter_source":{
-        "QDBMP" : "qdbmp.c"
+    "sources": "https://bevara.ddns.net/sources/qdbmp.accessor",
+    "filter_source": {
+        "QDBMP": "qdbmp.c"
     },
-    "Format": ["RGB"],
-    "using": ["mm_solver_minimal_1.0.1", "mm_solver_1.0.1", "mm_solver_1.0.2", "mm_solver_1.0.3", "mm_solver_1.0.4"],
+    "Format": [
+        "RGB"
+    ],
+    "using": [
+        "mm_solver_minimal_1.0.1",
+        "mm_solver_1.0.1",
+        "mm_solver_1.0.2",
+        "mm_solver_1.0.3",
+        "mm_solver_1.0.4",
+        "mm_solver_1.0.5"
+    ],
     "patents": {
         "status": "royalty-free",
         "note": "BMP",
